@@ -20,7 +20,7 @@ unsigned char pxInDegree;
 unsigned char lineAmount;
 unsigned char spaces;
 unsigned char origin;
-char hdg[3] = {0, 1, 5};
+//char hdg[3] = {0, 1, 5};
 
 void setup() {
   Serial.begin(9600);
@@ -78,8 +78,12 @@ void loop() {
   //COMENT:
   int sensorHdg = analogRead(A0);
   int compass = map(sensorHdg, 0, 1023, 0, 359);
+ /* if (compass >= 360)
+  {
+    compass = 360 - compass;
+  }*/
 
-  Serial.print("Compass: "); Serial.println(compass);
+  //Serial.print("Compass: "); Serial.println(compass);
   /*
   if (compass < 10)
   {
@@ -94,6 +98,8 @@ void loop() {
     Serial.print("Compass: "); Serial.println(compass);
   }
 */
+  //Serial.print("Compass: "); Serial.println(compass);
+  
   //For later use
   /*
   //Heading selection with Dial
@@ -113,27 +119,77 @@ void loop() {
   */
   
   // Calculate offset from center:
-  int offset = 10 - (compass % 10);
-  offset = map(offset, 1, 10, 0, spaces); // offset changed to pixels
+  int remainder = compass % 5;
+  int offset = 5 - remainder;
+   offset = map(remainder, 1, 5, 0, spaces); // offset changed to pixels
   //Serial.print("Offset: "); Serial.println(offset);
 
   //Drawing stuff:
   TV.clear_screen();
-  //Midle:
-  TV.print(mid, ver-5, compass);
-  //TV.print(mid, ver-5, hdg[1]);  
+  
+  //Midle heading:
+  if (compass < 10)
+  {
+    TV.print(mid-5, ver-5, "00");
+    TV.print(mid+3, ver-5, compass);
+  }
+  else if (compass < 100)
+  {
+    TV.print(mid-5, ver-5, '0');
+    TV.print(mid-1, ver-5, compass);
+  }
+  else
+  {
+    TV.print(mid-5, ver-5, compass);
+  }
+  
+  //TV.print(mid-5, ver-5, compass);  
   TV.draw_line(mid, (ver-12), mid, (ver-15), WHITE);
 
-  //Sides:
+  //Side lines:
   for (int i = 0; i < lineAmount; i++)
   {
-    int x = (origin+(spaces*i)) + offset;
+    int x = (origin+(spaces*i)) - offset;
     int y = ver - 6;
     if (x >= hor)
     {
       break;
     }
     TV.draw_line(x, y, x, y-5, WHITE);
+
+    //Write side headings
+    x = x-6;
+    y = ver-5;
+    if ((x>0 && x < mid-21) || (x > mid+9 && x < mid+51)) // write only if not overlaps
+    {
+      int output = (compass-remainder)-(15)+(5*i); //Don't work with chaged FOV
+      if (output < 0)
+      {
+        output = 360 + output;
+      }
+      else if (output > 360)
+      {
+        output = output - 360;
+      }
+      
+      if (output < 10)
+      {
+        TV.print(x, y, "00");
+        TV.print(x+8, y, output);
+      }
+      else if (output < 100)
+      {
+        TV.print(x, y, '0');
+        TV.print(x+4, y, output);
+      }
+      else
+      {
+        TV.print(x, y, output);
+      }
+      //TV.print(x, y, output);
+      //Serial.print("Output: "); Serial.println(output);
+    }
+    
   }
   
   /*
