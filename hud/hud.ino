@@ -6,6 +6,7 @@
 
 //Variables:
 int FOV = 30; // field of view
+int tgtHdg = 20; // target heading
 
 /* Assign a unique ID to this sensor at the same time */
 Adafruit_HMC5883_Unified mag = Adafruit_HMC5883_Unified(12345);
@@ -20,7 +21,6 @@ unsigned char pxInDegree;
 unsigned char lineAmount;
 unsigned char spaces;
 unsigned char origin;
-//char hdg[3] = {0, 1, 5};
 
 void setup() {
   Serial.begin(9600);
@@ -29,7 +29,7 @@ void setup() {
   if(!mag.begin())
   {
     /* There was a problem detecting the HMC5883 ... check your connections */
-    Serial.println("Ooops, no HMC5883 detected ... Check your wiring!");
+    //Serial.println("Ooops, no HMC5883 detected ... Check your wiring!");
     while(1);
   }
   
@@ -78,6 +78,7 @@ void loop() {
   //COMENT:
   int sensorHdg = analogRead(A0);
   int compass = map(sensorHdg, 0, 1023, 0, 359);
+  heading = compass*M_PI/180;
  /* if (compass >= 360)
   {
     compass = 360 - compass;
@@ -100,28 +101,10 @@ void loop() {
 */
   //Serial.print("Compass: "); Serial.println(compass);
   
-  //For later use
-  /*
-  //Heading selection with Dial
-  int hdg=analogRead(A0);
-  hdg = map(sensorHdg, 0, 1023, 0, 360);
-
-  //Nuokrypio skaiciavimas:
-  int delta = hdg - compass;
-  if (delta > 180)
-  {
-    delta = delta - 360;
-  }
-  else if (delta < -180)
-  {
-    delta = delta + 360;
-  }
-  */
-  
   // Calculate offset from center:
   int remainder = compass % 5;
   int offset = 5 - remainder;
-   offset = map(remainder, 1, 5, 0, spaces); // offset changed to pixels
+   offset = map(remainder, 0, 5, 0, spaces); // offset changed to pixels
   //Serial.print("Offset: "); Serial.println(offset);
 
   //Drawing stuff:
@@ -191,6 +174,38 @@ void loop() {
     }
     
   }
+
+  //Calculate and draw target circle:
+  //Calculating delta:
+  //int delta = tgtHdg - compass;
+  int delta = tgtHdg - compass;
+  if (delta >= 180)
+  {
+    delta -= 360;
+  }
+  else if (delta <= -180)
+  {
+    delta += 360;
+  }
+
+  //Calculating alfa:
+  int alfa = ver/2;
+/*
+  //Drawing circle:
+  if (delta < 15 && delta > -15)
+  {
+    TV.draw_circle(mid + (pxInDegree*delta), alfa, 8, WHITE);
+  }
+  if (delta > 15)
+  {
+    draw_arrow(90);
+  }
+  if (delta < -15)
+  {
+    draw_arrow(270);
+  }
+*/
+  draw_arrow(compass); 
   
   /*
   int sensorHdg=analogRead(A0);
@@ -200,6 +215,14 @@ void loop() {
   TV.draw_line(64,63,x,y,1);
   //TV.delay_frame(1);
   */
+  
+  
   TV.delay_frame(1);
+}
+
+void draw_arrow(float x) //Change to degreese
+{
+  x = x * M_PI / 180;
+  TV.draw_line(mid, ver/2, (5*cos(x)+mid), 5*sin(x)+(ver/2), WHITE);
 }
 

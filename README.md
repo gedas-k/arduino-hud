@@ -1,6 +1,8 @@
 # arduino-hud
 Custome Arduino HUD
 
+Working on tilt compensation
+
 Plans:
 
 Tilt compensation
