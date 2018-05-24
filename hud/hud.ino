@@ -1,8 +1,11 @@
+#include <SPI.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_HMC5883_U.h>
-#include <TVout.h>
-#include <TVoutfonts/fontALL.h>
+//#include <TVout.h>
+//#include <TVoutfonts/fontALL.h>
 #include <TinyGPS++.h>
 #include <SoftwareSerial.h>
 
@@ -24,7 +27,14 @@ Adafruit_HMC5883_Unified mag = Adafruit_HMC5883_Unified(12345);
 // The TinyGPS++ object
 TinyGPSPlus gps;
 
-TVout TV;
+// If using software SPI (the default case):
+#define OLED_MOSI   6
+#define OLED_CLK   3
+#define OLED_DC    8
+#define OLED_CS    11
+#define OLED_RESET 7
+Adafruit_SSD1306 display(OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
+//TVout TV;
 //unsigned char x,y;
 
 unsigned char hor;
@@ -53,10 +63,20 @@ void setup() {
     while(1);
   }
   
-  TV.begin(_NTSC,128,64);
-  TV.select_font(font4x6);
-  hor = TV.hres() - 1;
-  ver = TV.vres() - 1;
+  // by default, we'll generate the high voltage from the 3.3v line internally! (neat!)
+  display.begin(SSD1306_SWITCHCAPVCC);
+  // init done
+  
+  // setup text properties
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+  
+  //TV.begin(_NTSC,128,64);
+  //TV.select_font(font4x6);
+  //hor = TV.hres() - 1;
+  //ver = TV.vres() - 1;
+  hor = display.width() - 1;
+  ver = display.height() - 1;
   mid = hor / 2;
   pxInDegree = hor / FOV; // how many pixels in one degree
   lineAmount = (FOV / 5) + 1; // how many lines on screen
@@ -127,18 +147,18 @@ void loop() {
     heading -= 2*PI;
    
   // Convert radians to degrees for readability.
-  int compass = heading * 180/M_PI; // UNCOMENT//////////////////////////
+  //int compass = heading * 180/M_PI; // UNCOMENT//////////////////////////
   
   //COMENT:
-/*  int sensorHdg = analogRead(A0);
+  int sensorHdg = analogRead(A0);
   int compass = map(sensorHdg, 0, 1023, 0, 359);
-  heading = compass*M_PI/180;*/
+  heading = compass*M_PI/180;
  /* if (compass >= 360)
   {
     compass = 360 - compass;
   }*/
 
-  Serial.print("Compass: "); Serial.println(compass);
+  //Serial.print("Compass: "); Serial.println(compass);
   
   // Calculate offset from center:
   int remainder = compass % 5;
@@ -147,44 +167,45 @@ void loop() {
   //Serial.print("Offset: "); Serial.println(offset);
 
   //Drawing stuff:
-  TV.clear_screen();
+  
+  // Clear the buffer.
+  display.clearDisplay();
   
   //Midle heading:
+  display.setCursor(mid-9, ver-6);
   if (compass < 10)
   {
-    TV.print(mid-5, ver-5, "00");
-    TV.print(mid+3, ver-5, compass);
+    display.print("00"); display.print(compass);
   }
   else if (compass < 100)
   {
-    TV.print(mid-5, ver-5, '0');
-    TV.print(mid-1, ver-5, compass);
+    display.print('0'); display.print(compass);
   }
   else
   {
-    TV.print(mid-5, ver-5, compass);
+    display.print(compass);
   }
   
-  //TV.print(mid-5, ver-5, compass);  
-  TV.draw_line(mid, (ver-12), mid, (ver-15), WHITE);
-
-  //Side lines:
+  // midle line:
+  display.drawLine(mid, (ver-12), mid, (ver-15), WHITE);
+  
+  // side lines:
   for (int i = 0; i < lineAmount; i++)
   {
     int x = (origin+(spaces*i)) - offset;
-    int y = ver - 6;
+    int y = ver - 8;
     if (x >= hor)
     {
       break;
     }
-    TV.draw_line(x, y, x, y-5, WHITE);
+    display.drawLine(x, y, x, y-2, WHITE);
 
     //Write side headings
     x = x-6;
-    y = ver-5;
-    if ((x>0 && x < mid-21) || (x > mid+9 && x < mid+51)) // write only if not overlaps
+    y = ver-6;
+    if ((x>0 && x < mid-39) || (x > mid+12 && x < mid+46)) // write only if not overlaps
     {
-      int output = (compass-remainder)-(15)+(5*i); //Don't work with chaged FOV
+      int output = (compass-remainder)-(15)+(5*i); //Doesn't work with chaged FOV
       if (output < 0)
       {
         output = 360 + output;
@@ -194,19 +215,20 @@ void loop() {
         output = output - 360;
       }
       
+      display.setCursor(x, y);
       if (output < 10)
       {
-        TV.print(x, y, "00");
-        TV.print(x+8, y, output);
+        display.print("00"); display.print(output);
+        //TV.print(x+8, y, output);
       }
       else if (output < 100)
       {
-        TV.print(x, y, '0');
-        TV.print(x+4, y, output);
+        display.print('0'); display.print(output);
+        //TV.print(x+4, y, output);
       }
       else
       {
-        TV.print(x, y, output);
+        display.print(output);
       }
       //Serial.print("Output: "); Serial.println(output);
     }
@@ -266,7 +288,7 @@ void loop() {
   //Drawing circle:
   if (delta < 15 && delta > -15)
   {
-    TV.draw_circle(mid + (pxInDegree*delta), alfaS, 8, WHITE);
+    display.drawCircle(mid + (pxInDegree*delta), alfaS, 8, WHITE);
   }
   if (delta > 15 && alfa > 0)
   {
@@ -282,11 +304,14 @@ void loop() {
   }
   
   
-  TV.delay_frame(1);
+  //TV.delay_frame(1);
+  
+  //delay(1000);
+  display.display();
 }
 
 void draw_arrow(float x) //Change to degreese
 {
   x = x * M_PI / 180;
-  TV.draw_line(mid, ver/2, (5*cos(x)+mid), 5*sin(x)+(ver/2), WHITE);
+  display.drawLine(mid, ver/2, (5*cos(x)+mid), 5*sin(x)+(ver/2), WHITE);
 }
