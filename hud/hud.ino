@@ -160,7 +160,7 @@ void loop() {
 
   //Serial.print("Compass: "); Serial.println(compass);
   
-  // Calculate offset from center:
+  // Calculate offset lines from center:
   int remainder = compass % 5;
   int offset = 5 - remainder;
   offset = map(remainder, 0, 5, 0, spaces); // offset changed to pixels

@@ -1,0 +1,37 @@
+add libraries
+
+set constant variables
+
+define stuff
+
+create variables
+
+
+
+Setup
+
+begin serial
+
+initialize sensor
+
+set text properties
+
+calculate constant variables
+
+
+
+Loop
+
+events?
+
+getHeading
+
+filterHeading
+
+calculatePosition
+
+calculateOffsetToTGT (delta, alpha, distance)
+
+drawHeading+cross
+
+drawCircle
