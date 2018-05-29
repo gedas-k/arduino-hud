@@ -10,15 +10,15 @@
 #include <SoftwareSerial.h>
 
 //Variables:
-int FOV = 30; // field of view
+int FOV = 20; // field of view
 // Pressent position:
 double presX = 23.318922;
 double presY = 55.925182;
-int presElev = 200; // altitude in meters
+int presElev = 100; // altitude in meters
 // Target position:
-double tgtX = 23.317962;
-double tgtY = 55.925614;
-int tgtElev = 100; // target elevation in meters
+double tgtX = 23.312558;
+double tgtY = 55.928551;
+int tgtElev = 120; // target elevation in meters
 bool smoot = true; // is smooting on
 
 /* Assign a unique ID to this sensor at the same time */
@@ -147,12 +147,12 @@ void loop() {
     heading -= 2*PI;
    
   // Convert radians to degrees for readability.
-  //int compass = heading * 180/M_PI; // UNCOMENT//////////////////////////
-  
+  int compass = heading * 180/M_PI; // UNCOMENT//////////////////////////
+ /* 
   //COMENT:
   int sensorHdg = analogRead(A0);
   int compass = map(sensorHdg, 0, 1023, 0, 359);
-  heading = compass*M_PI/180;
+  heading = compass*M_PI/180;*/
  /* if (compass >= 360)
   {
     compass = 360 - compass;
