@@ -8,10 +8,10 @@
 #include <SoftwareSerial.h>
 
 //Variables:
-int fov = 20; // field of view
+int FOV = 20; // field of view
 // Pressent position:
-double presX = 23.318922;
-double presY = 55.925182;
+double presXtest = 23.318922;
+double presYtest = 55.925182;
 int presElev = 100; // altitude in meters
 // Target position:
 double tgtX = 23.312558;
@@ -42,6 +42,11 @@ unsigned char pxInDegree;
 unsigned char lineAmount;
 unsigned char spaces;
 unsigned char origin;
+double presX;
+double presY;
+int delta;
+float alpha;
+int alphaS;
 
 // getting ready for smoothing function:
 const int numReadings = 10;     // number of readings
@@ -72,10 +77,10 @@ void setup() {
   hor = display.width() - 1;
   ver = display.height() - 1;
   mid = hor / 2;
-  pxInDegree = hor / fov; // how many pixels in one degree
-  lineAmount = (fov / 5) + 1; // how many side lines on screen
+  pxInDegree = hor / FOV; // how many pixels in one degree
+  lineAmount = (FOV / 5) + 1; // how many side lines on screen
   spaces = 5 * pxInDegree; // spaces betwean lines
-  origin = mid - ((fov/10) * spaces); // where starts lines
+  origin = mid - ((FOV/10) * spaces); // where starts lines
 
   //Serial.print("Spaces: "); Serial.println(spaces);
   
@@ -88,35 +93,31 @@ void setup() {
 
 void loop() {
 
+  display.clearDisplay(); // clear the buffer
+  
+  int heading = getHeading();
+  calcPosition();
+  calcOffsetToTGT(heading);
+  drawHeading(heading);
+  drawCircle();
+
+  display.display(); // drawing everything
+
+}
+
+float getHeading()
+{
+
   /* Get a new sensor event */
   sensors_event_t event; 
-  mag.getEvent(&event);  
-
+  mag.getEvent(&event);
+  
   // Hold the module so that Z is pointing 'up' and you can measure the heading with x&y
   // Calculate heading when the magnetometer is level, then correct for signs of axis.
   float heading = 0;
   if (smoot == true)
   {
-    // subtract the last reading:
-    sum = sum - readings[readIndex];
-    // read from the sensor:
-    readings[readIndex] = atan2(event.magnetic.y, event.magnetic.x);;
-    // add the reading to the total:
-    sum = sum + readings[readIndex];
-    // advance to the next position in the array:
-    readIndex = readIndex + 1;
-  
-    // if we're at the end of the array...
-    if (readIndex >= numReadings) {
-      // ...wrap around to the beginning:
-      readIndex = 0;
-    }
-  
-    // calculate the average:
-    average = sum / numReadings;
-    // return it:
-    heading = average;
-    //delay(1);        // delay in between reads for stability
+    heading = filterHeading(heading);
   }
   else
   {
@@ -141,43 +142,112 @@ void loop() {
     heading -= 2*PI;
    
   // Convert radians to degrees for readability.
-  int compass = heading * 180/M_PI; // UNCOMENT//////////////////////////
- /* 
-  //COMENT:
-  int sensorHdg = analogRead(A0);
-  int compass = map(sensorHdg, 0, 1023, 0, 359);
-  heading = compass*M_PI/180;*/
- /* if (compass >= 360)
-  {
-    compass = 360 - compass;
-  }*/
+  heading = heading * 180/M_PI; // UNCOMENT/////////////////////////
+  return heading;
 
-  //Serial.print("Compass: "); Serial.println(compass);
+}
+
+float filterHeading(int heading)
+{
+  // subtract the last reading:
+  sum = sum - readings[readIndex];
+  // read from the sensor:
+//  readings[readIndex] = atan2(event.magnetic.y, event.magnetic.x);;
+  // add the reading to the total:
+  sum = sum + readings[readIndex];
+  // advance to the next position in the array:
+  readIndex = readIndex + 1;
   
-  // Calculate offset lines from center:
-  int remainder = compass % 5;
+  // if we're at the end of the array...
+  if (readIndex >= numReadings) {
+    // ...wrap around to the beginning:
+    readIndex = 0;
+  }
+  
+  // calculate the average:
+  average = sum / numReadings;
+  // return it:
+  heading = average;
+  //delay(1);        // delay in between reads for stability
+  return heading;
+}
+
+void calcPosition()
+{
+  //double presX = gps.location.lng(); UNCOMENT FOR GPS!!!!!!!!!!!!
+  //double presY = gps.location.lat();
+  double presX = presXtest;
+  double presY = presYtest;
+
+  // calculate altitude
+  //Change altitude with pot for testing:
+  presElev = analogRead(A0);
+  presElev = map(presElev, 0, 1023, 0, 2000);
+}
+
+void calcOffsetToTGT(int heading)
+{
+
+  // calculate heading to target
+  double tgtHdg =
+    TinyGPSPlus::courseTo(
+      presY,
+      presX,
+      tgtY, 
+      tgtX);
+  
+  // calculate ground distance to target
+  double groundDistance =
+    TinyGPSPlus::distanceBetween(
+      presY,
+      presX,
+      tgtY, 
+      tgtX);
+
+  // correct distance for altitude
+  float alt = presElev - tgtElev;
+  double distance = sqrt(sq(groundDistance/1000)+sq(alt/1000))*1000L;
+
+  // calculating delta:
+  delta = tgtHdg - heading;
+  if (delta >= 180)
+  {
+    delta -= 360;
+  }
+  else if (delta <= -180)
+  {
+    delta += 360;
+  }
+
+  // calculating alpha:
+  //int alpha = ver/2;
+  alpha = acos(alt/distance);
+  alpha = alpha * 180/M_PI - 90;
+  alphaS = map(alpha, -90, 90, 0, ver); // make that it fits on screen for now
+  
+}
+
+void drawHeading(int heading)
+{
+
+  // calculate offset lines from center:
+  int remainder = heading % 5;
   int offset = 5 - remainder;
   offset = map(remainder, 0, 5, 0, spaces); // offset changed to pixels
-  //Serial.print("Offset: "); Serial.println(offset);
-
-  //Drawing stuff:
   
-  // Clear the buffer.
-  display.clearDisplay();
-  
-  //Midle heading:
+  // midle heading:
   display.setCursor(mid-9, ver-6);
-  if (compass < 10)
+  if (heading < 10)
   {
-    display.print("00"); display.print(compass);
+    display.print("00"); display.print(heading);
   }
-  else if (compass < 100)
+  else if (heading < 100)
   {
-    display.print('0'); display.print(compass);
+    display.print('0'); display.print(heading);
   }
   else
   {
-    display.print(compass);
+    display.print(heading);
   }
   
   // midle line:
@@ -199,7 +269,7 @@ void loop() {
     y = ver-6;
     if ((x>0 && x < mid-39) || (x > mid+12 && x < mid+46)) // write only if not overlaps
     {
-      int output = (compass-remainder)-(15)+(5*i); //Doesn't work with chaged FOV
+      int output = (heading-remainder)-(15)+(5*i); //Doesn't work with chaged FOV
       if (output < 0)
       {
         output = 360 + output;
@@ -228,84 +298,32 @@ void loop() {
     }
     
   }
+}
 
-  //Calculate and draw target circle:
-  //Calculate target heading and distance:
-  
-  //Change altitude with pot for testing:
-  presElev = analogRead(A0);
-  presElev = map(presElev, 0, 1023, 0, 2000);
-  
-  //double presX = gps.location.lng(); UNCOMENT FOR GPS!!!!!!!!!!!!
-  //double presY = gps.location.lat();
-  double groundDistance =
-    TinyGPSPlus::distanceBetween(
-      presY,
-      presX,
-      tgtY, 
-      tgtX);
-  
-  float alt = presElev - tgtElev;
-  double distance = sqrt(sq(groundDistance/1000)+sq(alt/1000))*1000L; // corrected for altitude
-  
-  double tgtHdg =
-    TinyGPSPlus::courseTo(
-      presY,
-      presX,
-      tgtY, 
-      tgtX);
-      
-  //Serial.print("Altitude                               : "); Serial.println(alt);
-  //Serial.print("Air distance: "); Serial.println(distance);
-  //Serial.print("Target heading: "); Serial.println(tgtHdg);
-  //Serial.print("Ground distance: "); Serial.println(groundDistance);
-  
+void drawCircle()
+{
 
-  //Calculating delta:
-  int delta = tgtHdg - compass;
-  if (delta >= 180)
-  {
-    delta -= 360;
-  }
-  else if (delta <= -180)
-  {
-    delta += 360;
-  }
-
-  //Calculating alfa:
-  //int alfa = ver/2;
-  float alfa = acos(alt/distance);
-  alfa = alfa * 180/M_PI - 90;
-  int alfaS = map(alfa, -90, 90, 0, ver); //make that it fits on screen for now
-  //Serial.print("Alfa: "); Serial.println(alfa);
-  
-  //Drawing circle:
   if (delta < 15 && delta > -15)
   {
-    display.drawCircle(mid + (pxInDegree*delta), alfaS, 8, WHITE);
+    display.drawCircle(mid + (pxInDegree*delta), alphaS, 8, WHITE);
   }
-  if (delta > 15 && alfa > 0)
+  if (delta > 15 && alpha > 0)
   {
-    draw_arrow(360 - alfa);
+    int x = 360 - alpha;
+    x = x * M_PI / 180;
+    display.drawLine(mid, ver/2, (5*cos(x)+mid), 5*sin(x)+(ver/2), WHITE);
   }
-  else if (delta > 15 && alfa <= 0)
+  else if (delta > 15 && alpha <= 0)
   {
-    draw_arrow(0 - alfa);
+    int x = 0 - alpha;
+    x = x * M_PI / 180;
+    display.drawLine(mid, ver/2, (5*cos(x)+mid), 5*sin(x)+(ver/2), WHITE);
   }
   else if (delta < -15)
   {
-    draw_arrow(180 + alfa);
+    int x = 180 + alpha;
+    x = x * M_PI / 180;
+    display.drawLine(mid, ver/2, (5*cos(x)+mid), 5*sin(x)+(ver/2), WHITE);
   }
   
-  
-  //TV.delay_frame(1);
-  
-  //delay(1000);
-  display.display();
-}
-
-void draw_arrow(float x) //Change to degreese
-{
-  x = x * M_PI / 180;
-  display.drawLine(mid, ver/2, (5*cos(x)+mid), 5*sin(x)+(ver/2), WHITE);
 }
