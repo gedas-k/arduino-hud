@@ -230,18 +230,19 @@ void drawHeading()
   }
 }
 
-void drawHorizon()   //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Sutvarkyti del Yaw vs Alpha
+void drawHorizon()
 {
 
   int alpha = info[1];
   float beta = info[2];
   int yaw = info[3];
+  double distCrossToTarget = alpha * pxInDegree;
   
   if (beta == 90 || beta == -90)
   {
-    int x1 = mid - yaw;
+    int x1 = mid - alpha*distCrossToTarget;
     int y1 = 0;
-    int x2 = mid - yaw;
+    int x2 = mid - alpha*distCrossToTarget;
     int y2 = ver;
     display.drawLine(x1, y1, x2, y2, WHITE);
   }
@@ -249,9 +250,9 @@ void drawHorizon()   //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Sutvarkyti del Yaw 
   {
     beta = beta * M_PI / 180;  // convert beta to rad
     int x1 = 0;
-    int y1 = tan(beta)*(x1-mid + yaw) + (ver/2 + alpha);
+    int y1 = tan(beta)*(x1-mid + sin(beta)*distCrossToTarget) + (ver/2 + cos(beta)*distCrossToTarget);
     int x2 = hor;
-    int y2 = tan(beta)*(x2-mid + yaw) + (ver/2 + alpha);
+    int y2 = tan(beta)*(x2-mid + sin(beta)*distCrossToTarget) + (ver/2 + cos(beta)*distCrossToTarget);
     display.drawLine(x1, y1, x2, y2, WHITE);
   }
   
@@ -269,21 +270,14 @@ void drawTarget()
 
   double distCrossToTarget = sqrt(sq(alfaTgt) + sq(deltaTgt)) * pxInDegree;
   double teta = atan2(deltaTgt, alfaTgt); // angle from vertical IRL to target
-  float offAngle = teta - beta; // angle from Y axis on display to target
+  float offAngle = teta + beta; // angle from Y axis on display to target
 
   int x = mid + (distCrossToTarget * sin(offAngle));
   //float x = mid + deltaTgt*pxInDegree*cos(beta);
-  int y = ver/2 + (distCrossToTarget * cos(offAngle));
+  int y = ver/2 - (distCrossToTarget * cos(offAngle));
   //float y = ver/2 + alfaTgt + pxInDegree*deltaTgt*sin(beta);
 
   display.drawCircle(x, y, 8, WHITE);
-
-  display.setCursor(0, 26);
-  display.print("offAngle: "); display.println(offAngle);
-  display.print("Alpha: "); display.println(info[1]);
-  display.print("X: "); display.println(x);
-  display.print("Y: "); display.println(y);
-  
 
   /*
   if (delta < 15 && delta > -15)
