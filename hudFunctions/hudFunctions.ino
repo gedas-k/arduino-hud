@@ -33,7 +33,7 @@ unsigned char origin;
 char charLine[] = "000000000"; // HHHAAABBB
 float info[] = {000, 000, 000, 000}; // heading, alpha, beta, yaw
 double targetPosition[] = {23.312558, 55.928551, 100}; // longitude (X), latitude (Y), elevation
-double toTarget[] = {0, 0, 0}; // delta to target, alpha to target, distance to target
+double toTarget[] = {0, 0, 0, 0}; // delta to target, alpha to target, distance to target, heading to target
 bool addA = true; // for testing alpha
 bool addB = true; // for testing beta
 bool addY = true; // for testing yaw
@@ -71,12 +71,14 @@ void loop() {
   getToTarget();
   float heading = info[0];
   float alpha = info[1];
-  float beta = info[2];
+  //float beta = info[2];
   //int yaw = info[3];
+  int targetHeading = toTarget[3];
   display.setCursor(0, 0);
+  display.print("TGT: "); display.println(targetHeading);
   display.print("Heading: "); display.println(heading);
   display.print("Alpha: "); display.println(alpha);
-  display.print("Beta: "); display.println(beta);
+  //display.print("Beta: "); display.println(beta);
   //display.print("Yaw: "); display.println(yaw);
  /* Serial.print("Heading: "); Serial.println(heading);
   Serial.print("Alpha: "); Serial.println(alpha);
@@ -171,8 +173,6 @@ void drawHeading()
   //int offset = 5 - remainder;  /////////////////////////////////////////////////WTF?
   float offset = map(fRemainder, 0, 500, 0, spaces*100); // offset changed to pixels
   offset = offset / 100.0;
-  display.setCursor(0, 28);
-  display.println(offset);
   
   // midle heading:
   display.setCursor(mid-9, ver-6);
@@ -286,18 +286,15 @@ void drawTarget()
   int y = ver/2 - (distCrossToTarget * cos(offAngle));
   //float y = ver/2 + alfaTgt + pxInDegree*deltaTgt*sin(beta);
 
-  display.drawCircle(x, y, 8, WHITE);
-
-  /*
-  if (delta < 15 && delta > -15)
+  if (deltaTgt < 12 && deltaTgt > -12 && y < 70 && y > -6)
   {
-    display.drawCircle(mid + (pxInDegree*delta), alfa, 8, WHITE);
+    display.drawCircle(x, y, 8, WHITE);
   }
-  if (delta > 15 && alfa > 0)
+  else// (delta > 15 && alfa > 0)
   {
-    drawArrow(360 - alfa);
+    drawArrow(offAngle);
   }
-  else if (delta > 15 && alfa <= 0)
+/*  else if (delta > 15 && alfa <= 0)
   {
     drawArrow(0 - alfa);
   }
@@ -307,10 +304,11 @@ void drawTarget()
   }*/
 }
 
-void drawArrow(float x)
+void drawArrow(float offAngle)
 {
-  x = x * M_PI / 180;
-  display.drawLine(mid, ver/2, (5*cos(x)+mid), 5*sin(x)+(ver/2), WHITE);
+  //x = x * M_PI / 180;
+  int lenght = 12;
+  display.drawLine(mid, ver/2, mid+lenght*sin(offAngle), ver/2-lenght*cos(offAngle), WHITE);
 }
 
 void getHeading()
@@ -430,6 +428,7 @@ void getToTarget()
   toTarget[0] = delta;
   toTarget[1] = alfa;
   toTarget[2] = distance;
+  toTarget[3] = tgtHdg;
 
 }
 
