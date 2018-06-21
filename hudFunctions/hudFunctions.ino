@@ -13,9 +13,12 @@
 #define OLED_RESET 7
 Adafruit_SSD1306 display(OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
 
-ResponsiveAnalogRead analog(A0, false); // filter initiation
+ResponsiveAnalogRead analogHdg(0, false); // filter initiations
+ResponsiveAnalogRead analogAlpha(0, false);
+ResponsiveAnalogRead analogBeta(0, false);
 float snap=0.01;
 void setSnapMultiplier(float snap); // filter responsivity 0-1 default 0.01
+// resolution changed to 4098;
 
 //Variables:
 int fov = 20; // field of view
@@ -37,7 +40,7 @@ bool addY = true; // for testing yaw
 bool filter = true; // is filter ON
 
 void setup() {
-  Serial.begin(19200);
+  Serial.begin(9600);
   
   // by default, we'll generate the high voltage from the 3.3v line internally! (neat!)
   display.begin(SSD1306_SWITCHCAPVCC);
@@ -66,10 +69,10 @@ void loop() {
   getHeading();
   getOrentation();
   getToTarget();
-  int heading = info[0];
-  int alpha = info[1];
-  int beta = info[2];
-  int yaw = info[3];
+  float heading = info[0];
+  float alpha = info[1];
+  float beta = info[2];
+  //int yaw = info[3];
   display.setCursor(0, 0);
   display.print("Heading: "); display.println(heading);
   display.print("Alpha: "); display.println(alpha);
@@ -160,10 +163,16 @@ void drawHeading()
 {
 
   int heading = info[0];
+  float fHeading = info[0];
   // calculate offset lines from center:
+  //int hdgForRemainder = heading;
   int remainder = heading % 5;
-  int offset = 5 - remainder;
-  offset = map(remainder, 0, 5, 0, spaces); // offset changed to pixels
+  float fRemainder = (fHeading - heading + remainder) * 100; // adding decimal to number
+  //int offset = 5 - remainder;  /////////////////////////////////////////////////WTF?
+  float offset = map(fRemainder, 0, 500, 0, spaces*100); // offset changed to pixels
+  offset = offset / 100.0;
+  display.setCursor(0, 28);
+  display.println(offset);
   
   // midle heading:
   display.setCursor(mid-9, ver-6);
@@ -233,9 +242,9 @@ void drawHeading()
 void drawHorizon()
 {
 
-  int alpha = info[1];
+  float alpha = info[1];
   float beta = info[2];
-  int yaw = info[3];
+  //int yaw = info[3];
   double distCrossToTarget = alpha * pxInDegree;
   
   if (beta == 90 || beta == -90)
@@ -264,8 +273,8 @@ void drawTarget()
   float beta = info[2];
   beta = beta * M_PI/180; // convert to radians
   
-  int deltaTgt = toTarget[0];
-  int alfaTgt = toTarget[1] - info[1]; // change alfa for head possition alpha
+  float deltaTgt = toTarget[0];
+  float alfaTgt = toTarget[1] - info[1]; // change alfa for head possition alpha
   //alfaTgt = alfaTgt / cos(beta); // change alfa for head possition beta
 
   double distCrossToTarget = sqrt(sq(alfaTgt) + sq(deltaTgt)) * pxInDegree;
@@ -308,13 +317,16 @@ void getHeading()
 {  
 
   int sensorHdg = analogRead(A0);
-  int heading = map(sensorHdg, 20, 1000, 0, 359);
+  //float heading = map(sensorHdg, 20, 1000, 0, 359);
+  float heading = sensorHdg * (359.0 / 1023.0);
+    
   if (filter == false)
   {
     info[0] = heading;
   }
   else if (filter == true)
   {
+    //heading = heading * 100; //filter works only with int
     info[0] = filterHdg(heading);
   }
   
@@ -329,98 +341,47 @@ void getHeading()
   info[0] = heading;*/
 }
 
-int filterHdg(int heading)
+float filterHdg(float heading)
 {
-  analog.update(heading);
-  return analog.getValue();
+  heading = heading * 11;
+  analogHdg.update(heading);
+  heading = analogHdg.getValue()/11.0;
+  return heading;
+}
+
+int filterAlpha(int sensorAlpha)
+{
+  analogAlpha.update(sensorAlpha);
+  return analogAlpha.getValue();
+}
+
+int filterBeta(int sensorBeta)
+{
+  analogBeta.update(sensorBeta);
+  return analogBeta.getValue();  
 }
 
 void getOrentation()
 {
+  int sensorAlpha = analogRead(A1);
+  int sensorBeta = analogRead(A5);  
 
-  float sensorAlpha = analogRead(A1);
-  info[1] = map(sensorAlpha, 20, 1000, -90, 90);
-
-  float sensorBeta = analogRead(A5);
-  info[2] = map(sensorBeta, 20, 1000, -90, 90);
-  
-  /*
-  // Alpha
-  if (addA == true)
+  if (filter == false)
   {
-    int alpha = info[1] + 1;
-    info[1] = alpha;
+    info[1] = (sensorAlpha * (40.0 / 1023.0)) - 20.0;
+    //info[1] = map(sensorAlpha, 20, 1000, -90, 90);
+    info[2] = (sensorBeta * (180.0 / 1023.0)) - 90.0;
+    //info[2] = map(sensorBeta, 20, 1000, -90, 90);
   }
-  else if (addA == false)
+  else if (filter == true)
   {
-    int alpha = info[1] - 1;
-    info[1] = alpha;
-  } 
-  if (info[1] == 10)
-  {
-    addA = false;
+    sensorAlpha = map(sensorAlpha, 20, 1000, 0, 4000);
+    sensorBeta = map(sensorBeta, 20, 1000, 0, 3960);
+    sensorAlpha = filterAlpha(sensorAlpha);
+    sensorBeta = filterBeta(sensorBeta);
+    info[1] = sensorAlpha / 100.0 - 20.0;
+    info[2] = sensorBeta / 22.0 - 90.0;
   }
-  if (info[1] == -10)
-  {
-    addA = true;
-  }
-
-  // Beta
-  if (addB == true)
-  {
-    int beta = info[2] + 1;
-    info[2] = beta;
-  }
-  else if (addB == false)
-  {
-    int beta = info[2] - 1;
-    info[2] = beta;
-  }  
-  if (info[2] == 90)
-  {
-    addB = false;
-  }
-  if (info[2] == -90)
-  {
-    addB = true;
-  }
-
-  // Yaw
-  if (addY == true)
-  {
-    int yaw = info[3] + 1;
-    info[3] = yaw;
-  }
-  else if (addY == false)
-  {
-    int yaw = info[3] - 1;
-    info[3] = yaw;
-  }  
-  if (info[3] == 20)
-  {
-    addY = false;
-  }
-  if (info[3] == -20)
-  {
-    addY = true;
-  }
-  */
-  
-/*  char al[] = "000";
-  for (int i=0; i<3; i++)
-  {
-    al[i] = charLine[i+3];
-  }
-  int alpha = atoi(al);
-  info[1] = alpha;
-
-  char be[] = "000";
-  for (int i=0; i<3; i++)
-  {
-    be[i] = charLine[i+6];
-  }
-  int beta = atoi(be);
-  info[2] = beta;*/
 }
 
 void getToTarget()
@@ -450,7 +411,7 @@ void getToTarget()
       targetPosition[0]);
 
   // calculating delta from heading to target heading:
-  int delta = tgtHdg - info[0];
+  float delta = tgtHdg - info[0];
   if (delta >= 180)
   {
     delta -= 360;
