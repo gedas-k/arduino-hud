@@ -4,6 +4,9 @@
 #include <Wire.h>
 #include <ResponsiveAnalogRead.h> // filter
 #include <TinyGPS++.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_HMC5883_U.h>
+#include "Kalman.h"
 
 // If using software SPI (the default case):
 #define OLED_MOSI   6
@@ -58,6 +61,7 @@ void setup() {
   spaces = 5 * pxInDegree; // spaces betwean lines
   origin = mid - ((fov/10) * spaces); // where starts lines
 
+  setupForSensors();
 }
 
 void loop() {
@@ -92,6 +96,8 @@ void loop() {
 
   display.display(); // drawing everything
   //delay(1000);
+
+  
 
 }
 
@@ -361,7 +367,7 @@ int filterBeta(int sensorBeta)
 
 void getOrentation()
 {
-  int sensorAlpha = analogRead(A1);
+/*  int sensorAlpha = analogRead(A1);
   int sensorBeta = analogRead(A5);  
 
   if (filter == false)
@@ -379,7 +385,9 @@ void getOrentation()
     sensorBeta = filterBeta(sensorBeta);
     info[1] = sensorAlpha / 100.0 - 20.0;
     info[2] = sensorBeta / 22.0 - 90.0;
-  }
+  }*/
+
+  loopForSensors();
 }
 
 void getToTarget()
